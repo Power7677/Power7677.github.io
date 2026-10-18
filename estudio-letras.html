@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bobina — Estudio de audio y letras</title>
+<style>
+  :root{
+    --bg: #15130f;
+    --bg-raised: #1c1a15;
+    --line: #35322a;
+    --paper: #f1e8d6;
+    --paper-line: #d9cbac;
+    --ink: #e9e2d3;
+    --ink-dim: #a89f8c;
+    --amber: #e0a03e;
+    --amber-dim: #7a5c28;
+    --teal: #4c7d72;
+    --danger: #b5573f;
+    --font-serif: 'Source Serif 4', 'Iowan Old Style', Georgia, serif;
+    --font-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+    --font-sans: -apple-system, 'Segoe UI', Inter, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-sans);
+    display:flex;
+    flex-direction:column;
+  }
+  header{
+    padding:22px 28px 18px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .header-top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:14px;
+    flex-wrap:wrap;
+  }
+  header h1{
+    font-family:var(--font-serif);
+    font-weight:600;
+    font-size:1.5rem;
+    margin:0;
+    letter-spacing:0.2px;
+  }
+  header p{
+    margin:0;
+    color:var(--ink-dim);
+    font-size:0.88rem;
+  }
+  .backup-actions{
+    display:flex;
+    gap:10px;
+  }
+  .ghost-btn{
+    background:none;
+    border:1px solid var(--amber-dim);
+    color:var(--ink-dim);
+    border-radius:2px;
+    padding:6px 12px;
+    font-size:0.76rem;
+    font-family:var(--font-sans);
+    cursor:pointer;
+    transition:border-color .15s, color .15s;
+  }
+  .ghost-btn:hover{
+    border-color:var(--amber);
+    color:var(--ink);
+  }
+  .layout{
+    flex:1;
+    display:grid;
+    grid-template-columns:280px 1fr;
+    min-height:0;
+  }
+  @media (max-width: 860px){
+    .layout{grid-template-columns:1fr;}
+    .rail{border-right:none !important; border-bottom:1px solid var(--line);}
+  }
+  .rail{
+    border-right:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  .upload-zone{
+    margin:16px;
+    border:1px dashed var(--amber-dim);
+    border-radius:3px;
+    padding:18px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .upload-zone:hover, .upload-zone.drag{
+    border-color:var(--amber);
+    background:rgba(224,160,62,0.06);
+  }
+  .upload-zone p{
+    margin:6px 0 0;
+    color:var(--ink-dim);
+    font-size:0.8rem;
+  }
+  .upload-zone strong{
+    font-family:var(--font-serif);
+    font-size:0.98rem;
+    color:var(--ink);
+  }
+  #file-input{display:none;}
+  .yt-add{margin:0 16px 12px;display:flex;gap:6px;}
+  .yt-add input{flex:1;min-width:0;background:var(--bg-raised);border:1px solid var(--line);border-radius:2px;color:var(--ink);padding:7px 9px;font-size:0.78rem;font-family:var(--font-sans);outline:none;}
+  .yt-add input:focus{border-color:var(--amber-dim);}
+  .yt-add input::placeholder{color:var(--ink-dim);}
+  .yt-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:3px;background:#000;}
+  .yt-note{margin:10px 0 0;font-size:0.74rem;color:var(--ink-dim);line-height:1.5;}
+  .yt-note a{color:var(--teal);}
+  .bpm-manual{display:flex;gap:6px;margin-top:8px;justify-content:flex-end;}
+  .bpm-manual input{width:72px;background:var(--bg-raised);border:1px solid var(--line);border-radius:2px;color:var(--ink);padding:5px 8px;font-family:var(--font-mono);font-size:0.8rem;outline:none;}
+  .bpm-manual input:focus{border-color:var(--amber-dim);}
+  .track-list{
+    flex:1;
+    overflow-y:auto;
+    padding:0 8px 16px;
+  }
+  .track-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 10px;
+    border-radius:3px;
+    cursor:pointer;
+    color:var(--ink-dim);
+    border-left:2px solid transparent;
+  }
+  .track-item:hover{background:var(--bg-raised);}
+  .track-item.active{
+    background:var(--bg-raised);
+    color:var(--ink);
+    border-left:2px solid var(--amber);
+  }
+  .track-item .reel{
+    width:30px;height:30px;flex:none;
+    border-radius:50%;
+    border:2px solid currentColor;
+    position:relative;
+    opacity:0.75;
+  }
+  .track-item .reel::before{
+    content:"";
+    position:absolute; inset:9px;
+    border-radius:50%;
+    border:2px solid currentColor;
+  }
+  .track-item .meta{min-width:0;}
+  .track-item .name{
+    font-size:0.86rem;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .track-item .bpm-tag{
+    font-family:var(--font-mono);
+    font-size:0.72rem;
+    color:var(--amber);
+  }
+  .empty-rail{
+    padding:20px;
+    color:var(--ink-dim);
+    font-size:0.82rem;
+    line-height:1.5;
+  }
+  main{
+    min-width:0;
+    overflow-y:auto;
+    padding:28px 34px 60px;
+  }
+  .placeholder{
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--ink-dim);
+    text-align:center;
+    max-width:420px;
+    margin:80px auto 0;
+    font-size:0.94rem;
+    line-height:1.6;
+  }
+  .track-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+  }
+  .track-header h2{
+    font-family:var(--font-serif);
+    font-weight:600;
+    font-size:1.5rem;
+    margin:0 0 4px;
+  }
+  .track-header .sub{
+    color:var(--ink-dim);
+    font-size:0.85rem;
+  }
+  .bpm-readout{
+    font-family:var(--font-mono);
+    text-align:right;
+  }
+  .bpm-readout .num{
+    font-size:2.1rem;
+    color:var(--amber);
+    line-height:1;
+  }
+  .bpm-readout .label{
+    font-size:0.68rem;
+    letter-spacing:0.04em;
+    color:var(--ink-dim);
+  }
+  .player-card{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:18px 20px;
+    margin-bottom:26px;
+  }
+  audio{width:100%; height:36px;}
+  .player-actions{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:12px;
+    font-size:0.78rem;
+    color:var(--ink-dim);
+  }
+  .player-actions button{
+    background:none;
+    border:none;
+    color:var(--danger);
+    cursor:pointer;
+    font-size:0.78rem;
+    font-family:var(--font-sans);
+    padding:0;
+  }
+  .player-actions button:hover{text-decoration:underline;}
+  .analyzing{
+    color:var(--amber);
+    font-family:var(--font-mono);
+    font-size:0.78rem;
+  }
+  .split{
+    display:grid;
+    grid-template-columns:1fr 220px;
+    gap:22px;
+  }
+  @media (max-width:700px){
+    .split{grid-template-columns:1fr;}
+  }
+  .lyrics-panel{
+    background:var(--paper);
+    color:#2b2618;
+    border-radius:4px;
+    padding:20px 22px 16px;
+    display:flex;
+    flex-direction:column;
+    min-height:420px;
+  }
+  .lyrics-panel h3{
+    font-family:var(--font-serif);
+    margin:0 0 10px;
+    font-size:1.05rem;
+    color:#2b2618;
+  }
+  #lyrics-editor{
+    flex:1;
+    resize:vertical;
+    min-height:340px;
+    border:none;
+    background:transparent;
+    font-family:var(--font-serif);
+    font-size:1.05rem;
+    line-height:1.75;
+    color:#2b2618;
+    outline:none;
+  }
+  #lyrics-editor::placeholder{color:#8c7f5f;}
+  .lyrics-footer{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-top:1px solid var(--paper-line);
+    padding-top:10px;
+    margin-top:8px;
+    font-size:0.78rem;
+    color:#6b6047;
+  }
+  .save-btn{
+    background:#2b2618;
+    color:var(--paper);
+    border:none;
+    border-radius:2px;
+    padding:8px 16px;
+    font-size:0.8rem;
+    cursor:pointer;
+    font-family:var(--font-sans);
+  }
+  .save-btn:hover{background:#3d3521;}
+  .save-btn:disabled{opacity:0.4; cursor:default;}
+  .versions{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .versions h3{
+    font-family:var(--font-serif);
+    font-size:0.95rem;
+    margin:0 0 6px;
+    color:var(--ink);
+  }
+  .version-item{
+    text-align:left;
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-left:2px solid transparent;
+    color:var(--ink-dim);
+    border-radius:3px;
+    padding:9px 10px;
+    cursor:pointer;
+    font-size:0.78rem;
+  }
+  .version-item:hover{border-color:var(--amber-dim);}
+  .version-item.current{
+    border-left-color:var(--teal);
+    color:var(--ink);
+  }
+  .version-item .v-label{
+    font-family:var(--font-mono);
+    color:var(--amber);
+    display:block;
+    margin-bottom:2px;
+  }
+  .version-item .v-date{
+    font-size:0.7rem;
+  }
+  .version-empty{
+    color:var(--ink-dim);
+    font-size:0.78rem;
+  }
+  .toast{
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--bg-raised);
+    border:1px solid var(--amber-dim);
+    color:var(--ink);
+    padding:9px 18px;
+    border-radius:3px;
+    font-size:0.82rem;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s, transform .25s;
+  }
+  .toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(-6px);
+  }
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(10,9,7,0.6);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+    padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-box{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:4px;
+    width:100%;
+    max-width:420px;
+    max-height:80vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .modal-head{
+    padding:18px 20px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  .modal-head h3{
+    font-family:var(--font-serif);
+    margin:0 0 4px;
+    font-size:1.1rem;
+    color:var(--ink);
+  }
+  .modal-head p{
+    margin:0;
+    color:var(--ink-dim);
+    font-size:0.8rem;
+  }
+  .modal-toggle-all{
+    background:none;
+    border:none;
+    color:var(--amber);
+    font-size:0.76rem;
+    cursor:pointer;
+    padding:0;
+    margin-top:10px;
+    font-family:var(--font-sans);
+  }
+  .modal-toggle-all:hover{text-decoration:underline;}
+  .modal-list{
+    overflow-y:auto;
+    padding:8px 10px;
+    flex:1;
+  }
+  .modal-track{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 10px;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .modal-track:hover{background:var(--bg);}
+  .modal-track input{accent-color:var(--amber);}
+  .modal-track .m-name{
+    font-size:0.85rem;
+    color:var(--ink);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .modal-track .m-bpm{
+    margin-left:auto;
+    font-family:var(--font-mono);
+    font-size:0.72rem;
+    color:var(--ink-dim);
+    flex:none;
+  }
+  .modal-foot{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    padding:14px 20px;
+    border-top:1px solid var(--line);
+  }
+  .modal-cancel{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--ink-dim);
+    border-radius:2px;
+    padding:8px 16px;
+    font-size:0.8rem;
+    cursor:pointer;
+    font-family:var(--font-sans);
+  }
+  .modal-cancel:hover{color:var(--ink);}
+  .modal-confirm{
+    background:var(--amber);
+    color:#1a1608;
+    border:none;
+    border-radius:2px;
+    padding:8px 16px;
+    font-size:0.8rem;
+    font-weight:600;
+    cursor:pointer;
+    font-family:var(--font-sans);
+  }
+  .modal-confirm:hover{background:#eab258;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <h1>Bobina</h1>
+    <div class="backup-actions">
+      <button class="ghost-btn" id="export-btn">Exportar copia</button>
+      <button class="ghost-btn" id="import-btn">Importar copia</button>
+      <input type="file" id="import-input" accept="application/json,.json" style="display:none">
+    </div>
+  </div>
+  <p>Sube tus audios, detecta el tempo y escribe letras con historial de versiones — todo se guarda en este navegador.</p>
+</header>
+
+<div class="layout">
+  <div class="rail">
+    <div class="upload-zone" id="upload-zone">
+      <strong>Soltar o elegir audio</strong>
+      <p>MP3, WAV, M4A, OGG…</p>
+    </div>
+    <input type="file" id="file-input" accept="audio/*" multiple>
+    <div class="yt-add">
+      <input type="text" id="yt-input" placeholder="o pega un enlace de YouTube">
+      <button class="ghost-btn" id="yt-add-btn">Añadir</button>
+    </div>
+    <div class="track-list" id="track-list">
+      <div class="empty-rail">Todavía no has subido ningún audio. Los archivos que subas aparecerán aquí, con su tempo detectado.</div>
+    </div>
+  </div>
+
+  <main id="main">
+    <div class="placeholder">Elige o sube un audio a la izquierda para ver su reproductor, su BPM y su cuaderno de letras.</div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="export-modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Exportar copia de seguridad</h3>
+      <p>Elige qué audios quieres incluir, con su letra e historial.</p>
+      <button class="modal-toggle-all" id="modal-toggle-all">Deseleccionar todas</button>
+    </div>
+    <div class="modal-list" id="modal-list"></div>
+    <div class="modal-foot">
+      <button class="modal-cancel" id="modal-cancel">Cancelar</button>
+      <button class="modal-confirm" id="modal-confirm">Exportar seleccionadas</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const DB_NAME = 'bobina-estudio';
+  const DB_VERSION = 1;
+  let db;
+
+  function openDB(){
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const d = e.target.result;
+        if(!d.objectStoreNames.contains('tracks')){
+          d.createObjectStore('tracks', { keyPath:'id' });
+        }
+        if(!d.objectStoreNames.contains('versions')){
+          const vs = d.createObjectStore('versions', { keyPath:'id' });
+          vs.createIndex('byTrack', 'trackId');
+        }
+      };
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  function tx(storeNames, mode){
+    return db.transaction(storeNames, mode);
+  }
+
+  function addRecord(store, record){
+    return new Promise((resolve, reject) => {
+      const t = tx([store], 'readwrite');
+      t.objectStore(store).put(record);
+      t.oncomplete = () => resolve(record);
+      t.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  function getAll(store){
+    return new Promise((resolve, reject) => {
+      const t = tx([store], 'readonly');
+      const req = t.objectStore(store).getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  function getByIndex(store, index, value){
+    return new Promise((resolve, reject) => {
+      const t = tx([store], 'readonly');
+      const req = t.objectStore(store).index(index).getAll(value);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  function deleteRecord(store, id){
+    return new Promise((resolve, reject) => {
+      const t = tx([store], 'readwrite');
+      t.objectStore(store).delete(id);
+      t.oncomplete = () => resolve();
+      t.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  function uid(){
+    return Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+
+  // Some browsers/OS combos report an empty or generic type for certain audio
+  // files (m4a, wma, some ogg), which makes <audio> refuse to play them even
+  // though the file is fine. Fall back to a known MIME type by extension.
+  function resolveAudioMime(file){
+    const reported = file.type;
+    const genericOrEmpty = !reported || reported === 'application/octet-stream';
+    if(!genericOrEmpty) return reported;
+    const ext = file.name.split('.').pop().toLowerCase();
+    const byExt = {
+      mp3:'audio/mpeg', wav:'audio/wav', m4a:'audio/mp4', mp4:'audio/mp4',
+      aac:'audio/aac', ogg:'audio/ogg', oga:'audio/ogg', opus:'audio/opus',
+      flac:'audio/flac', webm:'audio/webm', wma:'audio/x-ms-wma', aiff:'audio/aiff'
+    };
+    return byExt[ext] || 'audio/mpeg';
+  }
+
+  // ---------- BPM detection ----------
+  // Energy-based peak picking + interval histogram, on a low-passed signal.
+  async function detectBPM(arrayBuffer){
+    const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await tmpCtx.decodeAudioData(arrayBuffer.slice(0));
+    tmpCtx.close();
+
+    const sampleRate = audioBuffer.sampleRate;
+    const offline = new OfflineCtx(1, audioBuffer.length, sampleRate);
+    const source = offline.createBufferSource();
+    source.buffer = audioBuffer;
+
+    const lowpass = offline.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 150;
+
+    source.connect(lowpass);
+    lowpass.connect(offline.destination);
+    source.start(0);
+
+    const rendered = await offline.startRendering();
+    const data = rendered.getChannelData(0);
+
+    let maxAmp = 0;
+    for(let i=0;i<data.length;i++){
+      const a = Math.abs(data[i]);
+      if(a > maxAmp) maxAmp = a;
+    }
+    const threshold = maxAmp * 0.55;
+    const minGapSamples = Math.floor(sampleRate * 0.25);
+    const peaks = [];
+    let lastPeak = -minGapSamples;
+    for(let i=0;i<data.length;i++){
+      if(Math.abs(data[i]) > threshold && (i - lastPeak) > minGapSamples){
+        peaks.push(i);
+        lastPeak = i;
+      }
+    }
+    if(peaks.length < 2) return null;
+
+    const bpmCounts = {};
+    for(let i=0;i<peaks.length-1;i++){
+      for(let j=i+1;j<Math.min(i+10, peaks.length);j++){
+        const intervalSec = (peaks[j]-peaks[i]) / sampleRate;
+        if(intervalSec <= 0) continue;
+        let bpm = 60 / intervalSec;
+        while(bpm < 70) bpm *= 2;
+        while(bpm > 180) bpm /= 2;
+        const bucket = Math.round(bpm);
+        bpmCounts[bucket] = (bpmCounts[bucket] || 0) + 1;
+      }
+    }
+    let best = null, bestCount = 0;
+    for(const [bpm, count] of Object.entries(bpmCounts)){
+      if(count > bestCount){ bestCount = count; best = Number(bpm); }
+    }
+    return best;
+  }
+
+  // ---------- App state ----------
+  let tracks = [];
+  let currentTrackId = null;
+  let currentObjectUrl = null;
+  let lastSavedContent = '';
+
+  const trackListEl = document.getElementById('track-list');
+  const mainEl = document.getElementById('main');
+  const toastEl = document.getElementById('toast');
+
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 1800);
+  }
+
+  function fmtDate(ts){
+    const d = new Date(ts);
+    return d.toLocaleDateString('es-ES', { day:'2-digit', month:'short' }) + ' · ' +
+           d.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  async function init(){
+    db = await openDB();
+    tracks = await getAll('tracks');
+    tracks.sort((a,b) => b.addedAt - a.addedAt);
+    renderTrackList();
+  }
+
+  function renderTrackList(){
+    if(tracks.length === 0){
+      trackListEl.innerHTML = '<div class="empty-rail">Todavía no has subido ningún audio. Los archivos que subas aparecerán aquí, con su tempo detectado.</div>';
+      return;
+    }
+    trackListEl.innerHTML = '';
+    tracks.forEach(t => {
+      const item = document.createElement('div');
+      item.className = 'track-item' + (t.id === currentTrackId ? ' active' : '');
+      item.innerHTML = `
+        <div class="reel"></div>
+        <div class="meta">
+          <div class="name">${escapeHtml(t.name)}</div>
+          <div class="bpm-tag">${t.bpm ? t.bpm + ' BPM' : (t.type === 'youtube' ? 'YouTube · BPM sin definir' : 'analizando…')}</div>
+        </div>`;
+      item.addEventListener('click', () => selectTrack(t.id));
+      trackListEl.appendChild(item);
+    });
+  }
+
+  async function handleFiles(fileList){
+    for(const file of Array.from(fileList)){
+      if(!file.type.startsWith('audio/') && !/\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|webm|wma|aiff)$/i.test(file.name)) continue;
+      const id = uid();
+      const arrayBuffer = await file.arrayBuffer();
+      const mime = resolveAudioMime(file);
+      // Re-wrap in a Blob with the corrected type so <audio> can identify it
+      // reliably, even if the OS/browser reported nothing useful for file.type.
+      const storedBlob = mime === file.type ? file : new Blob([arrayBuffer], { type: mime });
+      const record = {
+        id,
+        name: file.name,
+        mime,
+        blob: storedBlob,
+        bpm: null,
+        addedAt: Date.now()
+      };
+      await addRecord('tracks', record);
+      tracks.unshift(record);
+      renderTrackList();
+      selectTrack(id);
+
+      detectBPM(arrayBuffer).then(async (bpm) => {
+        record.bpm = bpm;
+        await addRecord('tracks', record);
+        renderTrackList();
+        if(currentTrackId === id) renderTrackView(record);
+      }).catch(() => {
+        record.bpm = 0;
+        renderTrackList();
+      });
+    }
+  }
+
+  function parseYouTubeId(url){
+    const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/))([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  async function addYouTube(){
+    const input = document.getElementById('yt-input');
+    const raw = input.value.trim();
+    const videoId = parseYouTubeId(raw);
+    if(!videoId){ showToast('Ese enlace de YouTube no es válido'); return; }
+    let name = 'YouTube · ' + videoId;
+    try{
+      const r = await fetch('https://www.youtube.com/oembed?format=json&url=' +
+        encodeURIComponent('https://www.youtube.com/watch?v=' + videoId));
+      if(r.ok){ const j = await r.json(); if(j.title) name = j.title; }
+    }catch(e){ /* sin conexión o bloqueado: nos quedamos con el nombre genérico */ }
+    const record = { id: uid(), type:'youtube', videoId, url: raw, name, mime:'youtube', bpm:null, addedAt: Date.now() };
+    await addRecord('tracks', record);
+    tracks.unshift(record);
+    input.value = '';
+    renderTrackList();
+    selectTrack(record.id);
+  }
+
+  async function selectTrack(id){
+    currentTrackId = id;
+    renderTrackList();
+    const t = tracks.find(x => x.id === id);
+    if(!t) return;
+    await renderTrackView(t);
+  }
+
+  async function renderTrackView(t){
+    const isYT = t.type === 'youtube';
+    if(currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl = isYT ? null : URL.createObjectURL(t.blob);
+
+    const versions = await getByIndex('versions', 'byTrack', t.id);
+    versions.sort((a,b) => b.savedAt - a.savedAt);
+    const latest = versions[0];
+    lastSavedContent = latest ? latest.content : '';
+
+    mainEl.innerHTML = `
+      <div class="track-header">
+        <div>
+          <h2>${escapeHtml(t.name)}</h2>
+          <div class="sub">Añadido el ${fmtDate(t.addedAt)}</div>
+        </div>
+        <div class="bpm-readout">
+          ${isYT
+            ? `<div class="num">${t.bpm || '—'}</div><div class="label">BPM MANUAL</div>
+               <div class="bpm-manual"><input type="number" id="bpm-input" min="30" max="300" placeholder="BPM" value="${t.bpm || ''}"><button class="ghost-btn" id="tap-btn">Tap tempo</button></div>`
+            : (t.bpm ? `<div class="num">${t.bpm}</div><div class="label">BPM DETECTADOS</div>`
+                     : `<div class="analyzing">analizando tempo…</div>`)}
+        </div>
+      </div>
+
+      <div class="player-card">
+        ${isYT
+          ? `<iframe class="yt-frame" src="https://www.youtube.com/embed/${t.videoId}?rel=0" title="YouTube" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+             <p class="yt-note">Reproducido desde YouTube (hace falta conexión). <a href="https://www.youtube.com/watch?v=${t.videoId}" target="_blank" rel="noopener">Abrir en YouTube</a>${location.protocol === 'file:' ? '<br>Si ves "Error 153", abre la app desde un servidor local (ver instrucciones) porque YouTube bloquea los archivos abiertos con doble clic.' : ''}</p>`
+          : `<audio controls src="${currentObjectUrl}"></audio>`}
+        <div class="player-actions">
+          <span>${isYT ? 'Enlace de YouTube' : (t.blob.size/1024/1024).toFixed(1) + ' MB · ' + (t.mime || 'audio')}</span>
+          <button id="delete-track">Eliminar audio</button>
+        </div>
+      </div>
+
+      <div class="split">
+        <div class="lyrics-panel">
+          <h3>Letra</h3>
+          <textarea id="lyrics-editor" placeholder="Escribe la letra de esta canción…"></textarea>
+          <div class="lyrics-footer">
+            <span id="version-status">${versions.length ? `Versión ${versions.length} guardada` : 'Sin versiones guardadas todavía'}</span>
+            <button class="save-btn" id="save-version" disabled>Guardar versión</button>
+          </div>
+        </div>
+        <div class="versions" id="versions-panel">
+          <h3>Historial</h3>
+          <div id="versions-list"></div>
+        </div>
+      </div>
+    `;
+
+    const audioEl = mainEl.querySelector('audio');
+    if(audioEl) audioEl.addEventListener('error', () => {
+      const codes = {1:'reproducción cancelada', 2:'error de red', 3:'no se pudo decodificar el archivo', 4:'formato no soportado por este navegador'};
+      const err = audioEl.error;
+      showToast('No se pudo reproducir: ' + (codes[err && err.code] || 'error desconocido'));
+    });
+
+    if(isYT){
+      const bpmInput = document.getElementById('bpm-input');
+      const saveBpm = async (val) => {
+        const n = Math.round(Number(val));
+        t.bpm = (n >= 30 && n <= 300) ? n : null;
+        await addRecord('tracks', t);
+        mainEl.querySelector('.bpm-readout .num').textContent = t.bpm || '—';
+        renderTrackList();
+      };
+      bpmInput.addEventListener('change', () => saveBpm(bpmInput.value));
+      let taps = [];
+      document.getElementById('tap-btn').addEventListener('click', () => {
+        const now = Date.now();
+        if(taps.length && now - taps[taps.length-1] > 2000) taps = [];
+        taps.push(now);
+        taps = taps.slice(-8);
+        if(taps.length >= 3){
+          const avg = (taps[taps.length-1] - taps[0]) / (taps.length - 1);
+          const bpm = Math.round(60000 / avg);
+          bpmInput.value = bpm;
+          saveBpm(bpm);
+        }
+      });
+    }
+
+    const editor = document.getElementById('lyrics-editor');
+    editor.value = lastSavedContent;
+
+    const saveBtn = document.getElementById('save-version');
+    editor.addEventListener('input', () => {
+      saveBtn.disabled = editor.value === lastSavedContent;
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      const content = editor.value;
+      if(content.trim() === '' || content === lastSavedContent) return;
+      const versionRecord = {
+        id: uid(),
+        trackId: t.id,
+        content,
+        savedAt: Date.now()
+      };
+      await addRecord('versions', versionRecord);
+      lastSavedContent = content;
+      saveBtn.disabled = true;
+      showToast('Versión guardada');
+      await renderTrackView(t);
+    });
+
+    document.getElementById('delete-track').addEventListener('click', async () => {
+      if(!confirm(`¿Eliminar "${t.name}" y todas sus versiones de letra? Esta acción no se puede deshacer.`)) return;
+      const vs = await getByIndex('versions', 'byTrack', t.id);
+      for(const v of vs) await deleteRecord('versions', v.id);
+      await deleteRecord('tracks', t.id);
+      tracks = tracks.filter(x => x.id !== t.id);
+      currentTrackId = null;
+      renderTrackList();
+      mainEl.innerHTML = '<div class="placeholder">Elige o sube un audio a la izquierda para ver su reproductor, su BPM y su cuaderno de letras.</div>';
+    });
+
+    renderVersionsList(versions, editor, saveBtn);
+  }
+
+  function renderVersionsList(versions, editor, saveBtn){
+    const list = document.getElementById('versions-list');
+    if(versions.length === 0){
+      list.innerHTML = '<div class="version-empty">Cada vez que guardes, quedará aquí una copia con fecha y hora.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    versions.forEach((v, i) => {
+      const n = versions.length - i;
+      const item = document.createElement('div');
+      item.className = 'version-item' + (i === 0 ? ' current' : '');
+      item.innerHTML = `<span class="v-label">Versión ${n}</span><span class="v-date">${fmtDate(v.savedAt)}</span>`;
+      item.addEventListener('click', () => {
+        editor.value = v.content;
+        saveBtn.disabled = v.content === lastSavedContent;
+        editor.focus();
+      });
+      list.appendChild(item);
+    });
+  }
+
+  // ---------- Backup: export / import ----------
+  function blobToBase64(blob){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function exportBackup(selectedIds){
+    const idSet = new Set(selectedIds);
+    const allTracks = await getAll('tracks');
+    const wanted = allTracks.filter(t => idSet.has(t.id));
+    if(wanted.length === 0){
+      showToast('No hay nada seleccionado para exportar');
+      return;
+    }
+    showToast('Preparando copia de seguridad…');
+    const allVersions = await getAll('versions');
+    const wantedIds = new Set(wanted.map(t => t.id));
+    const relevantVersions = allVersions.filter(v => wantedIds.has(v.trackId));
+    const tracksOut = [];
+    for(const t of wanted){
+      if(t.type === 'youtube'){
+        tracksOut.push({
+          id: t.id, type:'youtube', videoId: t.videoId, url: t.url,
+          name: t.name, mime: t.mime, addedAt: t.addedAt, bpm: t.bpm
+        });
+        continue;
+      }
+      const audioBase64 = await blobToBase64(t.blob);
+      tracksOut.push({
+        id: t.id, name: t.name, mime: t.mime,
+        addedAt: t.addedAt, bpm: t.bpm, audioBase64
+      });
+    }
+    const payload = {
+      app: 'bobina-estudio',
+      version: 1,
+      exportedAt: Date.now(),
+      tracks: tracksOut,
+      versions: relevantVersions
+    };
+    const blob = new Blob([JSON.stringify(payload)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = wanted.length === 1
+      ? `bobina-${wanted[0].name.replace(/\.[^.]+$/,'')}-${stamp}.json`
+      : `bobina-backup-${wanted.length}-canciones-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Copia de seguridad descargada');
+  }
+
+  function getModalCheckboxes(){
+    return Array.from(document.querySelectorAll('#modal-list input[type=checkbox]'));
+  }
+
+  function updateToggleAllLabel(){
+    const boxes = getModalCheckboxes();
+    const allChecked = boxes.every(b => b.checked);
+    document.getElementById('modal-toggle-all').textContent = allChecked ? 'Deseleccionar todas' : 'Seleccionar todas';
+  }
+
+  function openExportModal(){
+    if(tracks.length === 0){
+      showToast('No hay nada que exportar todavía');
+      return;
+    }
+    const list = document.getElementById('modal-list');
+    list.innerHTML = '';
+    tracks.forEach(t => {
+      const row = document.createElement('label');
+      row.className = 'modal-track';
+      row.innerHTML = `
+        <input type="checkbox" value="${t.id}" checked>
+        <span class="m-name">${escapeHtml(t.name)}</span>
+        <span class="m-bpm">${t.bpm ? t.bpm + ' BPM' : '—'}</span>`;
+      list.appendChild(row);
+    });
+    document.getElementById('export-modal').classList.add('show');
+    updateToggleAllLabel();
+  }
+
+  function closeExportModal(){
+    document.getElementById('export-modal').classList.remove('show');
+  }
+
+  document.getElementById('modal-list').addEventListener('change', updateToggleAllLabel);
+
+  document.getElementById('modal-toggle-all').addEventListener('click', () => {
+    const boxes = getModalCheckboxes();
+    const allChecked = boxes.every(b => b.checked);
+    boxes.forEach(b => b.checked = !allChecked);
+    updateToggleAllLabel();
+  });
+
+  document.getElementById('modal-cancel').addEventListener('click', closeExportModal);
+
+  document.getElementById('export-modal').addEventListener('click', (e) => {
+    if(e.target.id === 'export-modal') closeExportModal();
+  });
+
+  document.getElementById('modal-confirm').addEventListener('click', async () => {
+    const selected = getModalCheckboxes().filter(b => b.checked).map(b => b.value);
+    if(selected.length === 0){
+      showToast('Marca al menos una canción');
+      return;
+    }
+    closeExportModal();
+    await exportBackup(selected);
+  });
+
+  async function importBackup(file){
+    let payload;
+    try{
+      const text = await file.text();
+      payload = JSON.parse(text);
+    }catch(err){
+      showToast('Ese archivo no se puede leer como copia de seguridad');
+      return;
+    }
+    if(!payload || payload.app !== 'bobina-estudio' || !Array.isArray(payload.tracks)){
+      showToast('Ese archivo no es una copia de seguridad de Bobina');
+      return;
+    }
+    const nVersions = Array.isArray(payload.versions) ? payload.versions.length : 0;
+    const proceed = confirm(
+      `Se importarán ${payload.tracks.length} audio(s) y ${nVersions} versión(es) de letra.\n` +
+      `Si algún elemento coincide con uno ya guardado, se sobrescribirá.\n¿Continuar?`
+    );
+    if(!proceed) return;
+
+    showToast('Importando…');
+    try{
+      for(const t of payload.tracks){
+        if(t.type === 'youtube'){
+          await addRecord('tracks', {
+            id: t.id, type:'youtube', videoId: t.videoId, url: t.url,
+            name: t.name, mime: t.mime, addedAt: t.addedAt, bpm: t.bpm
+          });
+          continue;
+        }
+        const resp = await fetch(t.audioBase64);
+        const blob = await resp.blob();
+        const record = {
+          id: t.id, name: t.name, mime: t.mime,
+          addedAt: t.addedAt, bpm: t.bpm, blob
+        };
+        await addRecord('tracks', record);
+      }
+      if(Array.isArray(payload.versions)){
+        for(const v of payload.versions){
+          await addRecord('versions', v);
+        }
+      }
+      tracks = await getAll('tracks');
+      tracks.sort((a,b) => b.addedAt - a.addedAt);
+      currentTrackId = null;
+      renderTrackList();
+      mainEl.innerHTML = '<div class="placeholder">Elige o sube un audio a la izquierda para ver su reproductor, su BPM y su cuaderno de letras.</div>';
+      showToast('Copia de seguridad importada');
+    }catch(err){
+      console.error(err);
+      showToast('Algo falló al importar la copia');
+    }
+  }
+
+  document.getElementById('export-btn').addEventListener('click', openExportModal);
+  document.getElementById('import-btn').addEventListener('click', () => {
+    document.getElementById('import-input').click();
+  });
+  document.getElementById('import-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(file) importBackup(file);
+    e.target.value = '';
+  });
+
+  // ---------- Upload wiring ----------
+  const uploadZone = document.getElementById('upload-zone');
+  const fileInput = document.getElementById('file-input');
+
+  uploadZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+  ['dragenter','dragover'].forEach(evt => {
+    uploadZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('drag');
+    });
+  });
+  ['dragleave','drop'].forEach(evt => {
+    uploadZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('drag');
+    });
+  });
+  uploadZone.addEventListener('drop', (e) => {
+    if(e.dataTransfer.files && e.dataTransfer.files.length){
+      handleFiles(e.dataTransfer.files);
+    }
+  });
+
+  document.getElementById('yt-add-btn').addEventListener('click', addYouTube);
+  document.getElementById('yt-input').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') addYouTube();
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>
